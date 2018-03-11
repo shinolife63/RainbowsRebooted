@@ -112,8 +112,7 @@ def evaluate(line):
                 setType = 'array'
                 setDat = ''.join(tokens[2:])
             else:
-                setType, setDat = Type(tokens[2]), data(tokens[2])
-                
+                setType, setDat = Type(' '.join(tokens[2:])), data(' '.join(tokens[2:]))
             if flags['inputmode']:
                 variables[label(tokens[1])] = rFormat(setDat[1:], setDat[0])
             else:
@@ -188,10 +187,12 @@ def evaluate(line):
             variables[variable] = rFormat(data(variables[variable]) - incN, 'integer')
         if tokens[0] == 'app':
             arrayName = label(tokens[1])
-            appendVal = tokens[2]
+            appendVal = ' '.join(tokens[2:])
             arrayNow = variables[arrayName]
             #print('{0}: {1}'.format(arrayName,variables[arrayName]))
             #print(appendVal)
+            if Type(appendVal) == 'variable':
+                appendVal = variables[label(appendVal)]
             variables[arrayName] = rConvert(data(variables[arrayName]) + [appendVal])
         if tokens[0]=='func':
             functions[tokens[1]]={'number_of_arguments':data(tokens[2]),'expression':' '.join(tokens[3:]).replace('->',';')}
@@ -200,12 +201,11 @@ def evaluate(line):
             funcName = tokens[1]
             funcDat = functions[funcName]
             expr = funcDat['expression']
-            arguments = [data(arg) for arg in ' '.join(tokens[2:]).split(',')]
+            arguments = [arg for arg in ' '.join(tokens[2:]).split(',')]
             for i in range(funcDat['number_of_arguments']):
                 argCall = '|%d'%(i+1)
                 argValu = arguments[i]
-                #print(argValu)
-                expr = expr.replace(argCall,rConvert(argValu))
+                expr = expr.replace(argCall,rFormat(data(argValu), Type(argValu)))
             evaluate(expr)
         if tokens[0]=='read':
             try: variables[label(tokens[2])]='$%s'%open(data(tokens[1]),'r').read()
