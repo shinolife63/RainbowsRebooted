@@ -7,6 +7,7 @@ data_types = {
     '%':'integer',
     '@':'variable',
     '_':'input',
+    '+':'array',
 }
 flags = {'ifstat':0,'moveahead':1,'pointer':0,'setmode':0,'back':0,'inputmode':0}
 variables = {}
@@ -18,10 +19,23 @@ chunks = lambda l,n: [l[i:i+n] for i in range(0, len(l), n)] if n>1 else [l[i:i+
 
 def rFormat(data, Type):
     global data_types
-    for dataPrefix in data_types.keys():
-        dataType = data_types[dataPrefix]
-        if dataType == Type or dataPrefix == Type:
-            return '{0}{1}'.format(dataPrefix,data)
+    if Type != 'array':
+        for dataPrefix in data_types.keys():
+            dataType = data_types[dataPrefix]
+            if dataType == Type or dataPrefix == Type:
+                if not '{0}'.format(data).startswith(dataPrefix):
+                    return '{0}{1}'.format(dataPrefix,data)
+                else:
+                    return '{0}'.format(data)
+    else:
+        if not '{0}'.format(data).startswith('+['):
+            if '{0}'.format(data).startswith('['):
+                return '+{0}]'.format(data)
+            else:
+                return '+[{0}]'.format(data)
+        else:
+            return data
+
 
 def rConvert(data):
     global data_types
@@ -31,6 +45,8 @@ def rConvert(data):
         rType = 'string'
     elif dType == int:
         rType = 'integer'
+    elif dType == list:
+        rType = 'array'
     return rFormat(data, rType)
 
 def data(arg):
@@ -53,10 +69,22 @@ def data(arg):
         if flags['setmode']: return arg
         else: return int(arg[1:])
     if Type(arg)=='variable':
-        return data(variables[label(arg)])
+        if '[' not in arg:
+            return data(variables[label(arg)])
+        elif '[' in arg and ']' in arg:
+            varName = arg[1:arg.index('[')]
+            arrayIndex = data(arg.split('[')[1].replace(']',''))
+            varData = data(variables[varName])
+            if flags['setmode']:
+                return varData[arrayIndex]
+            else:
+                return data(varData[arrayIndex])
     if Type(arg)=='input':
         user_in = input(arg[arg.index('[')+1:arg.index(']')])
         return arg[1] + user_in
+    if Type(arg)=='array':
+        array = arg[arg.index('[')+1:arg.index(']')].split(',')
+        return [item.replace(' \'','').replace("'",'') for item in array]
     
 def Type(data):
     global data_types
@@ -73,17 +101,21 @@ def evaluate(line):
             flags['setmode']=1
             if Type(tokens[2]) == 'input':
                 flags['inputmode']=1
-                
             if Type(tokens[2]) == 'variable':
                 setType, setDat = Type(variables[label(tokens[2])]), variables[label(tokens[2])]
+            elif Type(tokens[2]) == 'array':
+                setType = 'array'
+                setDat = ''.join(tokens[2:])
             else:
                 setType, setDat = Type(tokens[2]), data(tokens[2])
+                
             if flags['inputmode']:
                 variables[label(tokens[1])] = rFormat(setDat[1:], setDat[0])
             else:
                 variables[label(tokens[1])] = rFormat(setDat, setType)
             #print(variables)
             flags['setmode']=0
+            flags['inputmode']=0
             
         if tokens[0] == 'add':
             if Type(tokens[3])!='variable':
@@ -106,7 +138,9 @@ def evaluate(line):
             else:
                 variables[label(tokens[3])]='%'+'%d'%(data(tokens[1])/data(tokens[2]))
         if tokens[0] == 'disp':
-             stdout.write(str(data(' '.join(tokens[1:]))))
+             stdout.write('{0}'.format(data(' '.join(tokens[1:]))))
+        if tokens[0] == 'dispn':
+             stdout.write('{0}\n'.format(data(' '.join(tokens[1:]))))
         if tokens[0] == 'if':
             if tokens[2] == '=':
                 if data(tokens[1])==data(tokens[3]): flags['ifstat']=1
@@ -121,6 +155,8 @@ def evaluate(line):
             if flags['ifstat']==0: evaluate(' '.join(tokens[1:]))
         if tokens[0] == 'jump':
             flags['pointer'] = data(tokens[1])-2
+        if tokens[0] == 'skip':
+            flags['pointer'] += data(tokens[1])+1
         if tokens[0]=='go': flags['pointer'],flags['back']=parsedcode.index('.%s'%tokens[1]),flags['pointer']
         if tokens[0]=='end': flags['pointer']=flags['back']
         if tokens[0]=='delay': time.sleep(data(tokens[1]))
@@ -138,6 +174,13 @@ def evaluate(line):
             elif len(tokens) == 2:
                 decN = 1
             variables[variable] = rFormat(data(variables[variable]) - incN, 'integer')
+        if tokens[0] == 'app':
+            arrayName = label(tokens[1])
+            appendVal = tokens[2]
+            arrayNow = variables[arrayName]
+            #print('{0}: {1}'.format(arrayName,variables[arrayName]))
+            #print(appendVal)
+            variables[arrayName] = rConvert(data(variables[arrayName]) + [appendVal])
         if tokens[0]=='func':
             functions[tokens[1]]={'number_of_arguments':data(tokens[2]),'expression':' '.join(tokens[3:]).replace('->',';')}
         if tokens[0]=='call':
