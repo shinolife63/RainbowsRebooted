@@ -4,6 +4,7 @@ import time
 data_types = {
     '$':'string',
     'h$':'hex string',
+    '%f':'float',
     '%':'integer',
     '@':'variable',
     '_':'input',
@@ -69,6 +70,9 @@ def data(arg):
     if Type(arg)=='integer':
         if flags['setmode']: return arg
         else: return int(arg[1:])
+    if Type(arg)=='float':
+        if flags['setmode']: return arg
+        else: return float(arg[2:])
     if Type(arg)=='variable':
         if '[' not in arg:
             return data(variables[label(arg)])
