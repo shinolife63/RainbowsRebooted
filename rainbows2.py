@@ -23,7 +23,21 @@ def rFormat(data, Type):
         if dataType == Type or dataPrefix == Type:
             return '{0}{1}'.format(dataPrefix,data)
 
+def rConvert(data):
+    global data_types
+    dType = type(data)
+    rType = '$'
+    if dType == str:
+        rType = 'string'
+    elif dType == int:
+        rType = 'integer'
+    return rFormat(data, rType)
+
 def data(arg):
+    #print(arg)
+    for dataPrefix in data_types.keys():
+        if dataPrefix*2 in arg:
+            arg = arg.replace(dataPrefix*2, dataPrefix)
     if Type(arg)=='string':
         if flags['setmode']: return arg
         else:
@@ -92,7 +106,7 @@ def evaluate(line):
             else:
                 variables[label(tokens[3])]='%'+'%d'%(data(tokens[1])/data(tokens[2]))
         if tokens[0] == 'disp':
-             stdout.write(str(data(' '.join(tokens[1:])))+'\n')
+             stdout.write(str(data(' '.join(tokens[1:]))))
         if tokens[0] == 'if':
             if tokens[2] == '=':
                 if data(tokens[1])==data(tokens[3]): flags['ifstat']=1
@@ -127,9 +141,15 @@ def evaluate(line):
         if tokens[0]=='func':
             functions[tokens[1]]={'number_of_arguments':data(tokens[2]),'expression':' '.join(tokens[3:]).replace('->',';')}
         if tokens[0]=='call':
-            expr = functions[tokens[1]]['expression']
-            for i in range(functions[tokens[1]]['number_of_arguments']):
-                expr = expr.replace('|%d'%(i+1),str(data(' '.join(tokens[2:]).split(',')[i])))
+            funcName = tokens[1]
+            funcDat = functions[funcName]
+            expr = funcDat['expression']
+            arguments = [data(arg) for arg in ' '.join(tokens[2:]).split(',')]
+            for i in range(funcDat['number_of_arguments']):
+                argCall = '|%d'%(i+1)
+                argValu = arguments[i]
+                #print(argValu)
+                expr = expr.replace(argCall,rConvert(argValu))
             evaluate(expr)
         if tokens[0]=='read':
             try: variables[label(tokens[2])]='$%s'%open(data(tokens[1]),'r').read()
