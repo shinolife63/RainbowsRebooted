@@ -13,6 +13,7 @@ flags = {'ifstat':0,'moveahead':1,'pointer':0,'setmode':0,'back':0,'inputmode':0
 variables = {}
 arguments = []
 functions = {}
+labels    = {}
 error = lambda line: print('"%s" Contained Error'%line)
 label = lambda var: var.replace('@','')
 chunks = lambda l,n: [l[i:i+n] for i in range(0, len(l), n)] if n>1 else [l[i:i+1] for i in range(0, len(l), 1)]
@@ -154,7 +155,12 @@ def evaluate(line):
         if tokens[0] == 'else':
             if flags['ifstat']==0: evaluate(' '.join(tokens[1:]))
         if tokens[0] == 'jump':
-            flags['pointer'] = data(tokens[1])-2
+            jumpPointer = tokens[1]
+            if Type(jumpPointer) == 'string':
+                jumpTo = labels[data(jumpPointer)]
+            elif Type(jumpPointer) == 'integer':
+                jumpTo = data(jumpPointer) - 2
+            flags['pointer'] = jumpTo
         if tokens[0] == 'skip':
             flags['pointer'] += data(tokens[1])+1
         if tokens[0]=='go': flags['pointer'],flags['back']=parsedcode.index('.%s'%tokens[1]),flags['pointer']
@@ -206,6 +212,10 @@ def evaluate(line):
 def runcode(code):
     lines = code.split('\n')
     parsedcode = [line[:line.index('#')-1] if '#' in line else line for line in code.split('\n')]
+    for i, line in enumerate(parsedcode):
+        tokens = line.split(' ')
+        if tokens[0] == 'lbl':
+            labels[data(tokens[1])] = i
     while flags['pointer']<len(parsedcode):
         evaluate(parsedcode[flags['pointer']])
         flags['pointer']+=flags['moveahead']
