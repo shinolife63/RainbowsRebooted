@@ -10,7 +10,7 @@ data_types = {
     '_':'input',
     '+':'array',
 }
-flags = {'ifstat':0,'moveahead':1,'pointer':0,'setmode':0,'back':0,'inputmode':0}
+flags = {'ifstat':0,'moveahead':1,'pointer':0,'setmode':0,'back':0,'inputmode':0,'callreturn':0}
 variables = {}
 arguments = []
 functions = {}
@@ -160,7 +160,9 @@ def evaluate(line):
             if flags['ifstat']==0: evaluate(' '.join(tokens[1:]))
         if tokens[0] == 'jump':
             jumpPointer = tokens[1]
-            if Type(jumpPointer) == 'string':
+            if jumpPointer == ':callreturn':
+                jumpTo = flags['callreturn']
+            elif Type(jumpPointer) == 'string':
                 jumpTo = labels[data(jumpPointer)]
             elif Type(jumpPointer) == 'integer':
                 jumpTo = data(jumpPointer) - 2
@@ -194,6 +196,7 @@ def evaluate(line):
         if tokens[0]=='func':
             functions[tokens[1]]={'number_of_arguments':data(tokens[2]),'expression':' '.join(tokens[3:]).replace('->',';')}
         if tokens[0]=='call':
+            flags['callreturn']=flags['pointer']
             funcName = tokens[1]
             funcDat = functions[funcName]
             expr = funcDat['expression']
